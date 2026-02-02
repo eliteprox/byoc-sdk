@@ -11,7 +11,7 @@
   "dependencies": {
     "@muxionlabs/byoc-sdk": "file:..",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
