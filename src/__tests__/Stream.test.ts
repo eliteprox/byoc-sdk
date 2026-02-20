@@ -479,7 +479,8 @@ describe('Stream class', () => {
         id: 'video-1',
         label: 'Camera',
         enabled: true,
-        stop: vi.fn()
+        stop: vi.fn(),
+        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true })
       } as unknown as MediaStreamTrack
       
       const mockAudioTrack = {
@@ -487,7 +488,8 @@ describe('Stream class', () => {
         id: 'audio-1',
         label: 'Microphone',
         enabled: true,
-        stop: vi.fn()
+        stop: vi.fn(),
+        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'audio', enabled: true })
       } as unknown as MediaStreamTrack
 
       const optionsWithTracks: StreamStartOptions = {
@@ -506,6 +508,64 @@ describe('Stream class', () => {
 
       // Verify getUserMedia was NOT called (tracks were used instead)
       expect(mockGetUserMedia).not.toHaveBeenCalled()
+    })
+
+    it('falls back to getUserMedia when empty tracks array provided', async () => {
+      const mockStream = new MediaStream()
+      mockGetUserMedia.mockResolvedValue(mockStream)
+
+      // Mock createOffer to throw
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish({
+          ...baseOptions,
+          tracks: []
+        })
+      } catch {
+        // Expected to fail
+      }
+
+      // Verify getUserMedia WAS called (fallback behavior for empty tracks)
+      expect(mockGetUserMedia).toHaveBeenCalled()
+    })
+
+    it('does not stop externally provided tracks on cleanup', async () => {
+      const externalVideoTrack = {
+        kind: 'video',
+        id: 'external-video-1',
+        label: 'External Camera',
+        enabled: true,
+        stop: vi.fn(),
+        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true })
+      } as unknown as MediaStreamTrack
+
+      const externalAudioTrack = {
+        kind: 'audio',
+        id: 'external-audio-1',
+        label: 'External Microphone',
+        enabled: true,
+        stop: vi.fn(),
+        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'audio', enabled: true })
+      } as unknown as MediaStreamTrack
+
+      const optionsWithExternalTracks: StreamStartOptions = {
+        ...baseOptions,
+        tracks: [externalVideoTrack, externalAudioTrack]
+      }
+
+      // Attempt to publish with externally managed tracks.
+      // Cleanup runs on both success and failure, stopping only the cloned tracks.
+      try {
+        await stream.publish(optionsWithExternalTracks)
+        await stream.stop()
+      } catch {
+        // Publish may fail in the test environment; cleanup is still triggered
+      }
+
+      // Verify that cleanup did NOT stop externally provided tracks
+      expect(externalVideoTrack.stop).not.toHaveBeenCalled()
+      expect(externalAudioTrack.stop).not.toHaveBeenCalled()
     })
 
     it('falls back to getUserMedia when no external tracks provided', async () => {
@@ -555,7 +615,7 @@ describe('Stream class', () => {
 
     it('warns when incompatible options provided alongside tracks', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const mockTrack = { kind: 'video', id: 'v1', enabled: true, stop: vi.fn() } as unknown as MediaStreamTrack
+      const mockTrack = { kind: 'video', id: 'v1', enabled: true, stop: vi.fn(), clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true }) } as unknown as MediaStreamTrack
       const optionsWithTracks: StreamStartOptions = {
         ...baseOptions,
         tracks: [mockTrack],

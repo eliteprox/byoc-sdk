@@ -285,7 +285,7 @@ export class Stream extends EventEmitter<StreamEventMap> {
         'microphoneDeviceId', 'useScreenShare', 'mediaConstraints'
       ]
 
-      // Priority 1: Use provided MediaStream directly
+      // Priority 1: Use provided MediaStream (clone tracks to avoid owning caller's tracks)
       if (options.mediaStream) {
         const ignored = ignoredMediaOptions.filter(key => options[key] !== undefined)
         if (ignored.length > 0) {
@@ -293,11 +293,16 @@ export class Stream extends EventEmitter<StreamEventMap> {
             `Stream: the following options are ignored when 'mediaStream' is provided: ${ignored.join(', ')}`
           )
         }
-        console.log('Using provided MediaStream directly')
-        return options.mediaStream
+        console.log('Using provided MediaStream (cloned for internal use)')
+        const clonedStream = new MediaStream()
+        options.mediaStream.getTracks().forEach((track) => {
+          const clonedTrack = track.clone()
+          clonedStream.addTrack(clonedTrack)
+        })
+        return clonedStream
       }
 
-      // Priority 2: Use provided tracks array
+      // Priority 2: Use provided tracks array (clone tracks to avoid owning caller's tracks)
       if (options.tracks && options.tracks.length > 0) {
         const ignored = ignoredMediaOptions.filter(key => options[key] !== undefined)
         if (ignored.length > 0) {
@@ -305,8 +310,9 @@ export class Stream extends EventEmitter<StreamEventMap> {
             `Stream: the following options are ignored when 'tracks' is provided: ${ignored.join(', ')}`
           )
         }
-        console.log('Creating MediaStream from provided tracks')
-        return new MediaStream(options.tracks)
+        console.log('Creating MediaStream from provided tracks (cloned for internal use)')
+        const clonedTracks = options.tracks.map((track) => track.clone())
+        return new MediaStream(clonedTracks)
       }
 
       // Priority 3: Fall back to getUserMedia or getDisplayMedia
