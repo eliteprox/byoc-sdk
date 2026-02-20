@@ -525,6 +525,83 @@ describe('Stream class', () => {
       expect(mockGetUserMedia).toHaveBeenCalled()
     })
 
+    it('warns when incompatible options provided alongside mediaStream', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const externalStream = new MediaStream()
+      const optionsWithStream: StreamStartOptions = {
+        ...baseOptions,
+        mediaStream: externalStream,
+        width: 1280,
+        cameraDeviceId: 'cam-1',
+        fpsLimit: 30
+      }
+
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish(optionsWithStream)
+      } catch {
+        // Expected to fail
+      }
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("options are ignored when 'mediaStream' is provided")
+      )
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('width'))
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('cameraDeviceId'))
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('fpsLimit'))
+      warnSpy.mockRestore()
+    })
+
+    it('warns when incompatible options provided alongside tracks', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const mockTrack = { kind: 'video', id: 'v1', enabled: true, stop: vi.fn() } as unknown as MediaStreamTrack
+      const optionsWithTracks: StreamStartOptions = {
+        ...baseOptions,
+        tracks: [mockTrack],
+        height: 720,
+        useScreenShare: true
+      }
+
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish(optionsWithTracks)
+      } catch {
+        // Expected to fail
+      }
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("options are ignored when 'tracks' is provided")
+      )
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('height'))
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('useScreenShare'))
+      warnSpy.mockRestore()
+    })
+
+    it('does not warn when no incompatible options alongside mediaStream', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const externalStream = new MediaStream()
+      const optionsWithStream: StreamStartOptions = {
+        ...baseOptions,
+        mediaStream: externalStream
+      }
+
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish(optionsWithStream)
+      } catch {
+        // Expected to fail
+      }
+
+      const sdkWarns = warnSpy.mock.calls.filter(args =>
+        typeof args[0] === 'string' && args[0].startsWith('Stream:')
+      )
+      expect(sdkWarns).toHaveLength(0)
+      warnSpy.mockRestore()
+    })
+
     it('prioritizes mediaStream over tracks when both provided', async () => {
       const mediaStreamOption = new MediaStream()
       const trackOption = [{ kind: 'video' }] as unknown as MediaStreamTrack[]

@@ -280,14 +280,31 @@ export class Stream extends EventEmitter<StreamEventMap> {
    */
   private async getMediaStream(options: StreamStartOptions): Promise<MediaStream> {
     try {
+      const ignoredMediaOptions: (keyof StreamStartOptions)[] = [
+        'width', 'height', 'fpsLimit', 'cameraDeviceId',
+        'microphoneDeviceId', 'useScreenShare', 'mediaConstraints'
+      ]
+
       // Priority 1: Use provided MediaStream directly
       if (options.mediaStream) {
+        const ignored = ignoredMediaOptions.filter(key => options[key] !== undefined)
+        if (ignored.length > 0) {
+          console.warn(
+            `Stream: the following options are ignored when 'mediaStream' is provided: ${ignored.join(', ')}`
+          )
+        }
         console.log('Using provided MediaStream directly')
         return options.mediaStream
       }
 
       // Priority 2: Use provided tracks array
       if (options.tracks && options.tracks.length > 0) {
+        const ignored = ignoredMediaOptions.filter(key => options[key] !== undefined)
+        if (ignored.length > 0) {
+          console.warn(
+            `Stream: the following options are ignored when 'tracks' is provided: ${ignored.join(', ')}`
+          )
+        }
         console.log('Creating MediaStream from provided tracks')
         return new MediaStream(options.tracks)
       }
