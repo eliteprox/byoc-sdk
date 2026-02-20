@@ -520,7 +520,7 @@ describe('Stream class', () => {
         ...baseOptions,
         tracks: []
       })
-      } catch (e) {
+      } catch {
         // Expected to fail
       }
 

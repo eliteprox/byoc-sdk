@@ -280,13 +280,6 @@ export class Stream extends EventEmitter<StreamEventMap> {
    */
   private async getMediaStream(options: StreamStartOptions): Promise<MediaStream> {
     try {
-      // Priority 1: Use provided MediaStream directly
-      if (options.mediaStream) {
-        const providedStream = options.mediaStream
-        const hasTracks = providedStream.getTracks().length > 0
-
-        if (hasTracks) {
-          console.log('Using provided MediaStream directly')
       // Priority 1: Use provided MediaStream (clone tracks to avoid owning caller's tracks)
       if (options.mediaStream) {
         console.log('Using provided MediaStream (cloned for internal use)')
