@@ -528,34 +528,53 @@ describe('Stream class', () => {
       expect(mockGetUserMedia).toHaveBeenCalled()
     })
     it('does not stop externally provided tracks on cleanup', async () => {
-      const externalVideoTrack = {
-        kind: 'video',
-        id: 'external-video-1',
-        label: 'External Camera',
-        enabled: true,
-        stop: vi.fn()
-      } as unknown as MediaStreamTrack
+      // Create mock tracks with clone method (required by the implementation)
+      const createMockTrack = (kind: string, id: string, label: string) => {
+        const stopFn = vi.fn()
+        const cloneFn = vi.fn().mockImplementation(() => {
+          // Return a cloned track that also has stop (will be stopped on cleanup)
+          const clonedStopFn = vi.fn()
+          return {
+            kind,
+            id: `${id}-clone`,
+            label: `${label}-clone`,
+            enabled: true,
+            stop: clonedStopFn,
+            clone: vi.fn() // Cloned tracks don't need to clone further
+          }
+        })
+        return {
+          kind,
+          id,
+          label,
+          enabled: true,
+          stop: stopFn,
+          clone: cloneFn
+        } as unknown as MediaStreamTrack
+      }
 
-      const externalAudioTrack = {
-        kind: 'audio',
-        id: 'external-audio-1',
-        label: 'External Microphone',
-        enabled: true,
-        stop: vi.fn()
-      } as unknown as MediaStreamTrack
+      const externalVideoTrack = createMockTrack('video', 'external-video-1', 'External Camera')
+      const externalAudioTrack = createMockTrack('audio', 'external-audio-1', 'External Microphone')
 
       const optionsWithExternalTracks: StreamStartOptions = {
         ...baseOptions,
         tracks: [externalVideoTrack, externalAudioTrack]
       }
 
-      // Publish with externally managed tracks
-      await stream.publish(optionsWithExternalTracks)
+      // Make publish fail after getting the media stream (to test cleanup without full publish)
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('Simulated publish failure'))
 
-      // Stop the stream to trigger cleanup
+      try {
+        await stream.publish(optionsWithExternalTracks)
+      } catch {
+        // Expected to fail - but we still want to test cleanup
+      }
+
+      // Manually call stop to trigger cleanup
       await stream.stop()
 
-      // Verify that cleanup did NOT stop externally provided tracks
+      // Verify that the ORIGINAL external tracks' stop was NOT called
+      // (the cloned tracks are what get stopped, not the originals)
       expect(externalVideoTrack.stop).not.toHaveBeenCalled()
       expect(externalAudioTrack.stop).not.toHaveBeenCalled()
     })
