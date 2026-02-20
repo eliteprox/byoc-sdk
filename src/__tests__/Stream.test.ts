@@ -508,6 +508,25 @@ describe('Stream class', () => {
       expect(mockGetUserMedia).not.toHaveBeenCalled()
     })
 
+    it('falls back to getUserMedia when empty tracks array provided', async () => {
+      const mockStream = new MediaStream()
+      mockGetUserMedia.mockResolvedValue(mockStream)
+
+      // Mock createOffer to throw
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish({
+        ...baseOptions,
+        tracks: []
+      })
+      } catch (e) {
+        // Expected to fail
+      }
+
+      // Verify getUserMedia WAS called (fallback behavior for empty tracks)
+      expect(mockGetUserMedia).toHaveBeenCalled()
+    })
     it('does not stop externally provided tracks on cleanup', async () => {
       const externalVideoTrack = {
         kind: 'video',
