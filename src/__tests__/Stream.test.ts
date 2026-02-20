@@ -508,6 +508,38 @@ describe('Stream class', () => {
       expect(mockGetUserMedia).not.toHaveBeenCalled()
     })
 
+    it('does not stop externally provided tracks on cleanup', async () => {
+      const externalVideoTrack = {
+        kind: 'video',
+        id: 'external-video-1',
+        label: 'External Camera',
+        enabled: true,
+        stop: vi.fn()
+      } as unknown as MediaStreamTrack
+
+      const externalAudioTrack = {
+        kind: 'audio',
+        id: 'external-audio-1',
+        label: 'External Microphone',
+        enabled: true,
+        stop: vi.fn()
+      } as unknown as MediaStreamTrack
+
+      const optionsWithExternalTracks: StreamStartOptions = {
+        ...baseOptions,
+        tracks: [externalVideoTrack, externalAudioTrack]
+      }
+
+      // Publish with externally managed tracks
+      await stream.publish(optionsWithExternalTracks)
+
+      // Stop the stream to trigger cleanup
+      await stream.stop()
+
+      // Verify that cleanup did NOT stop externally provided tracks
+      expect(externalVideoTrack.stop).not.toHaveBeenCalled()
+      expect(externalAudioTrack.stop).not.toHaveBeenCalled()
+    })
     it('falls back to getUserMedia when no external tracks provided', async () => {
       const mockStream = new MediaStream()
       mockGetUserMedia.mockResolvedValue(mockStream)
