@@ -465,7 +465,7 @@ describe('Stream class', () => {
 
       try {
         await stream.publish(optionsWithStream)
-      } catch (e) {
+      } catch {
         // Expected to fail
       }
 
@@ -500,7 +500,7 @@ describe('Stream class', () => {
 
       try {
         await stream.publish(optionsWithTracks)
-      } catch (e) {
+      } catch {
         // Expected to fail
       }
 
@@ -517,7 +517,7 @@ describe('Stream class', () => {
 
       try {
         await stream.publish(baseOptions)
-      } catch (e) {
+      } catch {
         // Expected to fail
       }
 
@@ -540,7 +540,7 @@ describe('Stream class', () => {
 
       try {
         await stream.publish(optionsWithBoth)
-      } catch (e) {
+      } catch {
         // Expected to fail
       }
 
