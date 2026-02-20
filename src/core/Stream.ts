@@ -280,6 +280,25 @@ export class Stream extends EventEmitter<StreamEventMap> {
    */
   private async getMediaStream(options: StreamStartOptions): Promise<MediaStream> {
     try {
+      // Priority 1: Use provided MediaStream (clone tracks to avoid owning caller's tracks)
+      if (options.mediaStream) {
+        console.log('Using provided MediaStream (cloned for internal use)')
+        const clonedStream = new MediaStream()
+        options.mediaStream.getTracks().forEach((track) => {
+          const clonedTrack = track.clone()
+          clonedStream.addTrack(clonedTrack)
+        })
+        return clonedStream
+      }
+
+      // Priority 2: Use provided tracks array (clone tracks to avoid owning caller's tracks)
+      if (options.tracks && options.tracks.length > 0) {
+        console.log('Creating MediaStream from provided tracks (cloned for internal use)')
+        const clonedTracks = options.tracks.map((track) => track.clone())
+        return new MediaStream(clonedTracks)
+      }
+
+      // Priority 3: Fall back to getUserMedia or getDisplayMedia
       if (options.useScreenShare) {
         return await navigator.mediaDevices.getDisplayMedia({
           video: options.enableVideoIngress !== false ? {

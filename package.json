@@ -1,6 +1,7 @@
 {
   "name": "@muxionlabs/byoc-sdk",
   "version": "1.1.1",
+  "type": "module",
   "description": "Production-quality SDK for Livepeer BYOC video streaming with AI processing",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
