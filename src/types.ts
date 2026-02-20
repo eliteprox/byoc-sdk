@@ -160,6 +160,10 @@ export interface StreamStartOptions {
   microphoneDeviceId?: string
   /** Use screen share instead of camera */
   useScreenShare?: boolean
+  /** Pre-existing media tracks to use instead of capturing from camera/mic */
+  tracks?: MediaStreamTrack[]
+  /** MediaStream containing tracks to use (alternative to tracks array) */
+  mediaStream?: MediaStream
 }
 export interface StreamUpdateOptions {
   /** Custom parameters to update (width/height require restarting the stream) */

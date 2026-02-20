@@ -280,6 +280,17 @@ export class Stream extends EventEmitter<StreamEventMap> {
    */
   private async getMediaStream(options: StreamStartOptions): Promise<MediaStream> {
     try {
+      // Priority 1: Use provided MediaStream directly
+      if (options.mediaStream) {
+        return options.mediaStream
+      }
+
+      // Priority 2: Use provided tracks array
+      if (options.tracks && options.tracks.length > 0) {
+        return new MediaStream(options.tracks)
+      }
+
+      // Priority 3: Fall back to getUserMedia or getDisplayMedia
       if (options.useScreenShare) {
         return await navigator.mediaDevices.getDisplayMedia({
           video: options.enableVideoIngress !== false ? {
