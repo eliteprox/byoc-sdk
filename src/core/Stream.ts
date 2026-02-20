@@ -282,11 +282,13 @@ export class Stream extends EventEmitter<StreamEventMap> {
     try {
       // Priority 1: Use provided MediaStream directly
       if (options.mediaStream) {
+        console.log('Using provided MediaStream directly')
         return options.mediaStream
       }
 
       // Priority 2: Use provided tracks array
       if (options.tracks && options.tracks.length > 0) {
+        console.log('Creating MediaStream from provided tracks')
         return new MediaStream(options.tracks)
       }
 
