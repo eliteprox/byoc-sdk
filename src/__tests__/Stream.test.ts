@@ -519,9 +519,9 @@ describe('Stream class', () => {
 
       try {
         await stream.publish({
-          ...baseOptions,
-          tracks: []
-        })
+        ...baseOptions,
+        tracks: []
+      })
       } catch {
         // Expected to fail
       }
@@ -529,45 +529,57 @@ describe('Stream class', () => {
       // Verify getUserMedia WAS called (fallback behavior for empty tracks)
       expect(mockGetUserMedia).toHaveBeenCalled()
     })
-
     it('does not stop externally provided tracks on cleanup', async () => {
-      const externalVideoTrack = {
-        kind: 'video',
-        id: 'external-video-1',
-        label: 'External Camera',
-        enabled: true,
-        stop: vi.fn(),
-        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true })
-      } as unknown as MediaStreamTrack
+      // Create mock tracks with clone method (required by the implementation)
+      const createMockTrack = (kind: string, id: string, label: string) => {
+        const stopFn = vi.fn()
+        const cloneFn = vi.fn().mockImplementation(() => {
+          // Return a cloned track that also has stop (will be stopped on cleanup)
+          const clonedStopFn = vi.fn()
+          return {
+            kind,
+            id: `${id}-clone`,
+            label: `${label}-clone`,
+            enabled: true,
+            stop: clonedStopFn,
+            clone: vi.fn() // Cloned tracks don't need to clone further
+          }
+        })
+        return {
+          kind,
+          id,
+          label,
+          enabled: true,
+          stop: stopFn,
+          clone: cloneFn
+        } as unknown as MediaStreamTrack
+      }
 
-      const externalAudioTrack = {
-        kind: 'audio',
-        id: 'external-audio-1',
-        label: 'External Microphone',
-        enabled: true,
-        stop: vi.fn(),
-        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'audio', enabled: true })
-      } as unknown as MediaStreamTrack
+      const externalVideoTrack = createMockTrack('video', 'external-video-1', 'External Camera')
+      const externalAudioTrack = createMockTrack('audio', 'external-audio-1', 'External Microphone')
 
       const optionsWithExternalTracks: StreamStartOptions = {
         ...baseOptions,
         tracks: [externalVideoTrack, externalAudioTrack]
       }
 
-      // Attempt to publish with externally managed tracks.
-      // Cleanup runs on both success and failure, stopping only the cloned tracks.
+      // Make publish fail after getting the media stream (to test cleanup without full publish)
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('Simulated publish failure'))
+
       try {
         await stream.publish(optionsWithExternalTracks)
-        await stream.stop()
       } catch {
-        // Publish may fail in the test environment; cleanup is still triggered
+        // Expected to fail - but we still want to test cleanup
       }
 
-      // Verify that cleanup did NOT stop externally provided tracks
+      // Manually call stop to trigger cleanup
+      await stream.stop()
+
+      // Verify that the ORIGINAL external tracks' stop was NOT called
+      // (the cloned tracks are what get stopped, not the originals)
       expect(externalVideoTrack.stop).not.toHaveBeenCalled()
       expect(externalAudioTrack.stop).not.toHaveBeenCalled()
     })
-
     it('falls back to getUserMedia when no external tracks provided', async () => {
       const mockStream = new MediaStream()
       mockGetUserMedia.mockResolvedValue(mockStream)
@@ -583,6 +595,29 @@ describe('Stream class', () => {
 
       // Verify getUserMedia WAS called (fallback behavior)
       expect(mockGetUserMedia).toHaveBeenCalled()
+    })
+
+    it('prioritizes mediaStream over tracks when both provided', async () => {
+      const mediaStreamOption = new MediaStream()
+      const trackOption = [{ kind: 'video' }] as unknown as MediaStreamTrack[]
+      
+      const optionsWithBoth: StreamStartOptions = {
+        ...baseOptions,
+        mediaStream: mediaStreamOption,
+        tracks: trackOption
+      }
+
+      // Mock createOffer to throw
+      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
+
+      try {
+        await stream.publish(optionsWithBoth)
+      } catch {
+        // Expected to fail
+      }
+
+      // Verify getUserMedia was NOT called (mediaStream takes priority)
+      expect(mockGetUserMedia).not.toHaveBeenCalled()
     })
 
     it('warns when incompatible options provided alongside mediaStream', async () => {
@@ -615,7 +650,13 @@ describe('Stream class', () => {
 
     it('warns when incompatible options provided alongside tracks', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const mockTrack = { kind: 'video', id: 'v1', enabled: true, stop: vi.fn(), clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true }) } as unknown as MediaStreamTrack
+      const mockTrack = {
+        kind: 'video',
+        id: 'v1',
+        enabled: true,
+        stop: vi.fn(),
+        clone: vi.fn().mockReturnValue({ stop: vi.fn(), kind: 'video', enabled: true })
+      } as unknown as MediaStreamTrack
       const optionsWithTracks: StreamStartOptions = {
         ...baseOptions,
         tracks: [mockTrack],
@@ -660,29 +701,6 @@ describe('Stream class', () => {
       )
       expect(sdkWarns).toHaveLength(0)
       warnSpy.mockRestore()
-    })
-
-    it('prioritizes mediaStream over tracks when both provided', async () => {
-      const mediaStreamOption = new MediaStream()
-      const trackOption = [{ kind: 'video' }] as unknown as MediaStreamTrack[]
-      
-      const optionsWithBoth: StreamStartOptions = {
-        ...baseOptions,
-        mediaStream: mediaStreamOption,
-        tracks: trackOption
-      }
-
-      // Mock createOffer to throw
-      mockPeerConnection.createOffer.mockRejectedValueOnce(new Error('offer failed'))
-
-      try {
-        await stream.publish(optionsWithBoth)
-      } catch {
-        // Expected to fail
-      }
-
-      // Verify getUserMedia was NOT called (mediaStream takes priority)
-      expect(mockGetUserMedia).not.toHaveBeenCalled()
     })
   })
 
