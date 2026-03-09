@@ -69,7 +69,7 @@
     "@types/react": "^19.2.7",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.3",
     "jsdom": "^27.3.0",
     "react": "^19.2.3",
     "tsup": "^8.0.1",
